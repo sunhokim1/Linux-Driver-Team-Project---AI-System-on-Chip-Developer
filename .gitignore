@@ -10,3 +10,7 @@
 AGENTS.md
 PROJECT.md
 .tmp_versions/
+fan_common.h
+fan_state.c
+fan_state.h
+main.c

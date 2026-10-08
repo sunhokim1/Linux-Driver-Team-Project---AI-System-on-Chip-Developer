@@ -3,6 +3,7 @@
 
 /* Shared device protocol constants; payloads are native int values. */
 #define ULTRASONIC_DEVICE_PATH "/dev/ultrasonic"
+#define ENCODER_DEVICE_PATH "/dev/fan_encoder"
 #define FAN_PWM_DEVICE_PATH "/dev/fan_pwm"
 #define FAN_SPEED_MIN 0
 #define FAN_SPEED_ON_MIN 1
@@ -25,7 +26,12 @@ typedef enum {
     EVENT_SHORT_PRESS,
     EVENT_LONG_PRESS,
     /* Input/I/O failure; EVENT_NONE means no new button event. */
-    EVENT_ERROR
+    EVENT_ERROR,
+    EVENT_SPEED_UP,
+    EVENT_SPEED_DOWN,
+    EVENT_NEAR,
+    EVENT_FAR,
+    EVENT_SENSOR_LOST
 } fan_event_t;
 
 typedef enum {
@@ -42,6 +48,8 @@ typedef struct {
     bool power;
     int speed;
     fan_mode_t mode;
+    bool near;
+    bool blocked;
 } fan_state_t;
 #endif
 

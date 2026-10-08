@@ -13,126 +13,136 @@
 
 static volatile sig_atomic_t stop_requested;
 
-static void request_stop(int signal_number)
+static void stop_handler(int signo)
 {
-    (void)signal_number;
-    /* No device I/O or logging in the signal handler. */
+    (void)signo;
     stop_requested = 1;
 }
 
-static int install_signal_handlers(void)
+static void print_state(const fan_state_t *state)
 {
-#ifdef _WIN32
-    /* Allows host-side tests; deployment uses the POSIX branch below. */
-    if (signal(SIGINT, request_stop) == SIG_ERR ||
-        signal(SIGTERM, request_stop) == SIG_ERR)
-        return -1;
-#else
-    struct sigaction action = {0};
+    const char *name;
 
-    action.sa_handler = request_stop;
-    if (sigemptyset(&action.sa_mask) < 0 ||
-        sigaction(SIGINT, &action, NULL) < 0 ||
-        sigaction(SIGTERM, &action, NULL) < 0)
-        return -1;
-    /* No SA_RESTART: device reads should be able to return on shutdown. */
-#endif
-    return 0;
-}
+    switch (state->mode) {
+    case FAN_MODE_S1:
+        name = "S1";
+        break;
 
-static int wait_for_next_measurement(void)
-{
-    /* 100 ms is a polling default, not a gesture/debounce threshold. */
-    struct timespec remaining = { .tv_sec = 0, .tv_nsec = 100000000L };
+    case FAN_MODE_S2:
+        name = "S2";
+        break;
 
-    while (!stop_requested) {
-        struct timespec interrupted;
+    case FAN_MODE_S3:
+        name = "S3";
+        break;
 
-        if (nanosleep(&remaining, &interrupted) == 0)
-            return 0;
-        if (errno != EINTR)
-            return -1;
-        remaining = interrupted;
+    default:
+        name = "OFF";
+        break;
     }
-    return 0;
+
+    printf("팬 상태: %s / 상태 값: %d\n",
+           name, state->speed);
+    fflush(stdout);
 }
 
 int main(void)
 {
+    struct sigaction action = {0};
+
+    /* 초음파 드라이버에서 이미 측정 간격을 확보함 */
+    const struct timespec interval = {
+        .tv_sec = 0,
+        .tv_nsec = 10000000L
+    };
+
     fan_state_t state;
     int result = EXIT_FAILURE;
 
-    fan_state_init(&state);
+    action.sa_handler = stop_handler;
 
-    if (install_signal_handlers() < 0) {
-        perror("install_signal_handlers");
+    if (sigemptyset(&action.sa_mask) < 0 ||
+        sigaction(SIGINT, &action, NULL) < 0 ||
+        sigaction(SIGTERM, &action, NULL) < 0) {
+        perror("종료 신호 설정 실패");
         return EXIT_FAILURE;
     }
 
+    fan_state_init(&state);
+
     if (fan_output_init() < 0) {
-        perror("fan_output_init");
-        fan_output_cleanup();
+        perror("모터 장치 초기화 실패");
         return EXIT_FAILURE;
     }
 
     if (apply_fan_state(&state) < 0) {
-        perror("initial OFF output");
+        perror("초기 정지 출력 실패");
         goto shutdown;
     }
 
-    /* Input descriptor lifetime belongs to Member 1's get_event().
-     * It must return EVENT_ERROR for failures and use bounded waits so
-     * a blocked read cannot prevent shutdown indefinitely.
-     * Button duration/debounce belongs there too: SHORT on release <2 s,
-     * LONG once at >=2 s, with no SHORT event after a LONG event.
-     */
-    result = EXIT_SUCCESS;
-    while (!stop_requested) {
-        fan_event_t event;
+    puts("20cm 이하 접근: S1 시작");
+    puts("엔코더 오른쪽: S1 → S2 → S3");
+    puts("엔코더 왼쪽: S3 → S2 → S1");
+    puts("엔코더 버튼 2초 누름: OFF");
+    puts("20cm 초과: OFF");
+    puts("버튼으로 정지한 뒤에는 멀어졌다가 다시 접근하세요.");
+    puts("종료: Ctrl+C");
 
-        errno = 0;
-        event = get_event();
+    print_state(&state);
+
+    result = EXIT_SUCCESS;
+
+    while (!stop_requested) {
+        fan_event_t event = get_event();
+
         if (stop_requested)
             break;
 
         if (event == EVENT_ERROR) {
-            if (errno)
-                perror("get_event");
-            else
-                fputs("get_event: input error\n", stderr);
-            result = EXIT_FAILURE;
-            break;
-        }
-        if (event < EVENT_NONE || event > EVENT_LONG_PRESS) {
-            fputs("get_event: invalid event\n", stderr);
+            perror("초음파/엔코더 입력 실패");
             result = EXIT_FAILURE;
             break;
         }
 
-        if (handle_event(&state, event) && !stop_requested) {
+        if (event < EVENT_NONE || event > EVENT_SENSOR_LOST) {
+            fprintf(stderr, "유효하지 않은 이벤트: %d\n",
+                    (int)event);
+            result = EXIT_FAILURE;
+            break;
+        }
+
+        if (handle_event(&state, event)) {
+            if (stop_requested)
+                break;
+
             if (apply_fan_state(&state) < 0) {
-                perror("apply_fan_state");
+                perror("팬 PWM 출력 실패");
                 result = EXIT_FAILURE;
                 break;
             }
         }
 
-        if (wait_for_next_measurement() < 0) {
-            perror("measurement interval");
+            print_state(&state);
+        
+
+        if (nanosleep(&interval, NULL) < 0 &&
+            errno != EINTR) {
+            perror("대기 실패");
             result = EXIT_FAILURE;
             break;
         }
     }
 
 shutdown:
-    /* Try OFF even after a write failure; never claim the motor stopped
-     * if this request fails. The output module owns resource cleanup.
-     */
     fan_state_init(&state);
+
     if (apply_fan_state(&state) < 0) {
-        perror("shutdown OFF output");
+        perror("모터 정지 요청 실패");
         result = EXIT_FAILURE;
     }
+
     fan_output_cleanup();
+
+    puts("팬 제어 종료");
     return result;
 }
