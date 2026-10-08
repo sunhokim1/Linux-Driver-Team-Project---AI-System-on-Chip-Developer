@@ -1,5 +1,36 @@
 # Smart Fan — Linux Device Driver Project
 
+## 스켈레톤 사용 안내
+
+현재 저장소는 팀별 구현을 시작하기 위한 스켈레톤이다. 초기 OFF 상태 설정과
+공통 인터페이스를 제공하며, 이벤트 판단·상태 전환·장치 통신·GPIO/IRQ/PWM 제어는
+담당 파일의 TODO로 남겨 두었다. 프로젝트 디렉터리는 이 저장소 루트를 사용한다.
+
+Linux / Jetson에서 GCC와 Make를 준비한 뒤 다음 명령을 사용한다.
+
+```sh
+make                    # 사용자 프로그램 빌드: build/smart-fan
+make test               # 테스트 자리 빌드 및 실행 (현재 모두 SKIP)
+make kernel             # 실행 중인 커널의 헤더로 두 모듈 빌드
+# 다른 타깃 커널 빌드 경로를 사용할 경우:
+make kernel KDIR=/path/to/target/kernel/build
+make clean              # 사용자 빌드 산출물 및 커널 산출물 정리 (커널 헤더 필요)
+```
+
+현재 사용자 프로그램은 출력 초기화에서 `ENOSYS`를 알리고 종료 코드 1로 종료한다.
+커널 모듈도 초기화에서 `-ENOSYS`를 반환하므로 장치를 생성하거나 하드웨어를 제어하지 않는다.
+테스트 파일은 실제 검증이 추가될 때까지 SKIP(종료 코드 77)을 반환한다.
+커널 빌드 및 하드웨어 검증은 타깃 JetPack/Kernel 버전을 확정한 뒤 진행한다.
+
+| 담당 | 구현 시작 위치 |
+|---|---|
+| Member 1 | `kernel/ultrasonic/`, `user/event/`, `tests/test_event.c` |
+| Member 2 | `include/`, `user/state/`, `user/main.c`, `tests/test_state.c` |
+| Member 3 | `kernel/fan_pwm/`, `user/output/`, `tests/test_pwm.c` |
+
+구체적인 협의 항목은 `docs/hardware.md`, `docs/driver_interface.md`,
+`docs/state_diagram.md`에 정리되어 있다.
+
 ## 1. 프로젝트 개요
 
 ### 프로젝트 목표
