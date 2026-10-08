@@ -12,7 +12,9 @@
 
 #include "fan_common.h"
 
-/* 모터 IN1: 물리 29번, PQ.05 */
+/* Fixed wiring: ENA=BOARD 33 (32c0000.pwm), IN1=BOARD 29 (PQ.05).
+ * scripts/load_motor.py selects the board's PWM global ID for ENA.
+ */
 #define GPIO_IN1 453
 
 /* 주기 1ms = 1kHz */
@@ -21,7 +23,7 @@
 static int pwm_id = -1;
 
 module_param(pwm_id, int, 0444);
-MODULE_PARM_DESC(pwm_id, "Motor PWM global ID");
+MODULE_PARM_DESC(pwm_id, "Global PWM ID for 32c0000.pwm (ENA physical pin 33)");
 
 static struct pwm_device *motor_pwm;
 static DEFINE_MUTEX(fan_lock);

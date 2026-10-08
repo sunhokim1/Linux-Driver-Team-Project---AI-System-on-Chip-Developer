@@ -25,6 +25,9 @@ LED 테스트는 드라이버 소스를 모의 커널 API로 실행해 점등 �
 OFF/자원 해제를 확인한다. 실제 커널 헤더 호환성 및 모듈 로드 검증은 별도다.
 커널 빌드/로드와 실제 모터 출력은 설치된 JetPack/Kernel 및 Pinmux에 맞춰 확인한다.
 커널의 기존 GPIO/IRQ/PWM 구현은 유지했다. 현재 PWM 모듈은 `pwm_id`가 필수다.
+모터 배선은 **ENA=물리33, IN1=물리29**다. 앱 종료 후
+`make -C kernel/fan_pwm`와 `sudo python3 scripts/load_motor.py`로 33번 채널을 로드한다.
+스크립트는 보드의 Linux 5.15에서 `32c0000.pwm`에 해당하는 ID를 찾아 기존 모터 모듈을 재로드한다.
 
 Orin에서 변경 파일을 받은 뒤 다음 순서로 확인한다.
 

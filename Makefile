@@ -1,4 +1,5 @@
 CC ?= gcc
+PYTHON ?= python3
 CPPFLAGS += -Iinclude -Iuser
 CFLAGS ?= -std=c11 -Wall -Wextra -Wpedantic
 BUILD_DIR := build
@@ -46,6 +47,7 @@ $(BUILD_DIR)/test_main: tests/test_main.c user/state/fan_state.c $(BUILD_DIR)/ma
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< user/state/fan_state.c $(BUILD_DIR)/main_test.o $(LDFLAGS) $(LDLIBS) -o $@
 
 test: test-build
+	$(PYTHON) tests/test_load_motor.py
 	@for test in $(filter-out $(BUILD_DIR)/test_main,$(TEST_BINS)); do \
 		"$$test"; status=$$?; \
 		if [ $$status -ne 0 ]; then exit $$status; fi; \

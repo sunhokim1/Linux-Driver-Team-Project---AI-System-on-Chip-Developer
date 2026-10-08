@@ -4,7 +4,7 @@
 
 | 항목 | 확정 값 |
 |---|---|
-| JetPack / Kernel 버전 | TODO |
+| JetPack / Kernel 버전 | Kernel 5.15.199-tegra (사용자 로그), JetPack 확인 필요 |
 | 캐리어 보드 | NVIDIA 정품 Orin Nano Developer Kit (사용자 확인) |
 | 초음파 센서 모델 | TODO |
 | Trigger / Echo GPIO 및 Pinmux | 현재 코드: 물리11/36, global GPIO460/461; 보드 확인 필요 |
@@ -12,7 +12,7 @@
 | Echo 레벨 변환 회로 | TODO |
 | 모터 / 전압 / 별도 전원 | TODO |
 | 모터 드라이버 회로 | TODO |
-| 모터 PWM 채널 / 주기 | pwm_id 필수 / 현재 주기 1ms (1kHz) |
+| 모터 PWM 채널 / 주기 | ENA 물리33 / 32c0000.pwm / 현재 주기 1ms (1kHz) |
 | 모터 방향 IN1 / IN2 | 현재 코드: IN1 물리29 / global GPIO453, IN2 GND 고정 |
 | LED 연결 방식 / PWM 채널 | LED1..8: 물리7/12/19/16/21/23/37/31. Main 상태와 연동 |
 
@@ -24,6 +24,25 @@
 모터는 드라이버 회로와 별도 전원을 사용하며 공통 GND 및 보호 회로를 검토한다.
 
 TODO: 배선도, Device Tree / Pinmux 설정, 측정 결과 기록.
+
+## 모터 로드: ENA 33번, IN1 29번
+
+배선은 ENA=물리33, IN1=물리29, IN2=GND를 기준으로 한다.
+ENA 채널은 `32c0000.pwm`이다. `3280000.pwm`은 물리15에 해당하므로 선택하지 않는다.
+`pwm_id`는 물리 핀 번호 33도, 고정 상수도 아니다. Linux 5.15의 sysfs
+`pwmchipN/device`가 `32c0000.pwm`인 N을 찾아 channel 0의 global ID로 사용한다.
+앱을 Ctrl+C로 종료한 뒤 다음 명령을 실행한다.
+
+```sh
+make -C kernel/fan_pwm
+sudo python3 scripts/load_motor.py
+sudo ./build/smart-fan
+```
+
+스크립트는 장치/모듈 파일을 확인한 뒤 기존 모터 모듈을 해제하고 정확한 ID로 재로드한다.
+모듈이 사용 중이면 중단한다. 읽기만 하려면 `python3 scripts/load_motor.py --print-id`.
+이 스크립트는 사용자 로그의 Linux 5.15를 대상으로 하며 Pinmux를 변경하지 않는다.
+재로드 뒤 S1에서 `32c0000.pwm`의 smartfan-motor duty=600000, IN1=HIGH를 확인한다.
 
 ## LED 바 새 배선 (WCNLB8, LED1 → LED8)
 
