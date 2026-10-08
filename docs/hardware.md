@@ -14,7 +14,7 @@
 | 모터 드라이버 회로 | TODO |
 | 모터 PWM 채널 / 주기 | pwm_id 필수 / 현재 주기 1ms (1kHz) |
 | 모터 방향 IN1 / IN2 | 현재 코드: IN1 물리29 / global GPIO453, IN2 GND 고정 |
-| LED 연결 방식 / PWM 채널 | LED1..8: 물리7/12/19/16/21/23/37/31. 자동 상태 표시 미구현 |
+| LED 연결 방식 / PWM 채널 | LED1..8: 물리7/12/19/16/21/23/37/31. Main 상태와 연동 |
 
 핀 번호와 PWM API는 보드 및 커널 버전을 확인한 뒤 확정한다.
 위 global GPIO는 현재 코드의 설정이며 JetPack/커널별 GPIO base를 확인해야 한다.
@@ -61,7 +61,8 @@ sudo python3 tests/test_led_bar.py --pins 7 12 19 16 21 23 37 31
 `kernel/fan_led/fan_led_drv.c`의 LED1..8 GPIO 배열을 base=348 기준
 `{492, 398, 483, 474, 482, 481, 472, 454}`로 변경했다.
 LED 드라이버 프로토콜은 int 단계 0/1/2/3이며 모터의 int 0/2/5/8과 구분한다.
-현재 Main/Output은 `/dev/fan_led`에 연결되어 있지 않아 상태 자동 표시는 별도 통합이 필요하다.
+Main/Output은 `/dev/fan_led`에 OFF/S1/S2/S3의 mode 0/1/2/3을 전달한다.
+장치가 없거나 LED 출력이 실패하면 로그를 남기고 모터만 제어한다.
 LED 드라이버를 로드한 상태에서는 GPIO를 직접 쓰는 Python 테스트를 실행하지 않는다.
 
 ```sh

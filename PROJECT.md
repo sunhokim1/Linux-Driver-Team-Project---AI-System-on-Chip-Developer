@@ -24,7 +24,9 @@ Character Device의 open/read/write/close로 통신한다. ioctl은 확장용 �
 입력: `kernel/ultrasonic/` -> `/dev/fan_encoder`, `/dev/ultrasonic` -> `user/event/`.
 기본은 엔코더 전용이며 `--auto`에서만 초음파를 읽는다.
 판단: `user/state/`가 이벤트에 따라 전원 및 풍량 상태를 관리한다.
-출력: `user/output/` -> `/dev/fan_pwm` -> `kernel/fan_pwm/` -> 모터. LED 통합은 미구현이다.
+출력: `user/output/` -> `/dev/fan_pwm` -> `kernel/fan_pwm/` -> 모터.
+LED: `user/output/` -> `/dev/fan_led` -> `kernel/fan_led/` -> LED 바 (0/2/5/8개).
+LED 오류는 로그 후 모터만 계속 제어하며 모터 오류는 Main이 정지 후 종료한다.
 통합 진입점은 `user/main.c`, 공통 인터페이스는 `include/`이다.
 센서와 출력 페이로드는 native int이며 단위는 mm와 논리 출력 0/2/5/8이다.
 

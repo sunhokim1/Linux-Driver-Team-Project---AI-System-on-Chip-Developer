@@ -11,7 +11,9 @@
 encoder steps는 read 사이의 누적 회전량이고 pressed는 KEY LOW일 때 1이다.
 네 가지 풍량은 OFF=0/S1=2/S2=5/S3=8이며 현재 driver duty는 0/60/80/100%다.
 LED 드라이버에는 speed 대신 mode에 해당하는 0/1/2/3을 전달한다.
-현재 Main/Output은 모터만 접근하며 LED 연결은 별도 구현이 필요하다.
+Main/Output은 모터에 speed, LED에 mode를 전달한다. 초기 상태와 종료 시 모두 OFF다.
+LED 장치 열기/출력 실패는 로그를 남기고 LED 장치를 해제하여 모터 제어를 유지한다.
+모터 출력 실패는 기존대로 Main의 정지/오류 종료 경로로 전달한다.
 다른 값과 전송 크기는 EINVAL, 사용자 공간 short read/write는 EIO로 처리한다.
 
 초음파 read는 측정 전 60ms 대기하고 Echo를 최대 50ms 기다린다.

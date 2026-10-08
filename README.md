@@ -45,7 +45,8 @@ sudo ./build/smart-fan --auto           # 초음파 자동 모드로 실제 제�
 `reverse=1` 옵션, 한 칸 인식이 다르면 `transitions=2` 또는 `4`를 확인한다.
 엔코더 핀은 S1=물리13, S2=물리18, KEY=물리22를 유지한다.
 
-LED 드라이버는 구현되어 있으나 Main의 상태 자동 표시는 아직 연결되어 있지 않다. `tests/test_led_bar.py`는
+Main/Output이 상태 변경 시 `/dev/fan_led`에 단계 0/1/2/3을 보내 LED 0/2/5/8개를 표시한다.
+LED 장치 열기/출력 실패는 원인을 출력하고 모터만 계속 제어한다. `tests/test_led_bar.py`는
 독립 실험용이며 기본 LED1..8 핀은 **7/12/19/16/21/23/37/31**이다.
 `sudo python3 tests/test_led_bar.py`로 확인하며, 배선 표는 `docs/hardware.md`를 따른다.
 다른 배선은 `--pins`로 지정할 수 있다. `kernel/fan_led` 드라이버도 같은 배선으로 수정했다.

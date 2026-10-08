@@ -5,6 +5,7 @@
 #define ULTRASONIC_DEVICE_PATH "/dev/ultrasonic"
 #define ENCODER_DEVICE_PATH "/dev/fan_encoder"
 #define FAN_PWM_DEVICE_PATH "/dev/fan_pwm"
+#define FAN_LED_DEVICE_PATH "/dev/fan_led"
 #define FAN_SPEED_MIN 0
 #define FAN_SPEED_ON_MIN 1
 #define FAN_SPEED_MAX 8

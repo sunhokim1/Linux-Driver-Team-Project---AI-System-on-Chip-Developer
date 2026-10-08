@@ -2,6 +2,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
 #include <unistd.h>
 
 #include "fan_output.h"
@@ -10,16 +11,17 @@
 #endif
 
 static int motor_fd = -1;
+static int led_fd = -1;
 
-static int send_speed(int speed)
+static int write_value(int fd, int value)
 {
     ssize_t n;
 
     do {
-        n = write(motor_fd, &speed, sizeof(speed));
+        n = write(fd, &value, sizeof(value));
     } while (n < 0 && errno == EINTR);
 
-    if (n != (ssize_t)sizeof(speed)) {
+    if (n != (ssize_t)sizeof(value)) {
         if (n >= 0)
             errno = EIO;
 
@@ -27,6 +29,16 @@ static int send_speed(int speed)
     }
 
     return 0;
+}
+
+/* LED is optional: report its failure without stopping a working motor. */
+static void update_led(int level)
+{
+    if (led_fd >= 0 && write_value(led_fd, level) < 0) {
+        perror("LED 출력 실패 (모터만 사용)");
+        close(led_fd);
+        led_fd = -1;
+    }
 }
 
 int fan_output_init(void)
@@ -44,7 +56,7 @@ int fan_output_init(void)
     if (motor_fd < 0)
         return -1;
 
-    if (send_speed(0) < 0) {
+    if (write_value(motor_fd, 0) < 0) {
         int saved = errno;
 
         close(motor_fd);
@@ -54,6 +66,11 @@ int fan_output_init(void)
         return -1;
     }
 
+    led_fd = open(FAN_LED_DEVICE_PATH, O_WRONLY | O_CLOEXEC);
+    if (led_fd < 0)
+        perror("LED 장치 열기 실패 (모터만 사용)");
+    else
+        update_led(0);
     return 0;
 }
 
@@ -94,12 +111,19 @@ int apply_fan_state(const fan_state_t *state)
         return -1;
     }
 
-    /* Member2 상태 값 0, 2, 5, 8을 그대로 전달 */
-    return send_speed(state->speed);
+    /* Motor consumes speed 0/2/5/8; LED consumes mode 0/1/2/3. */
+    if (write_value(motor_fd, state->speed) < 0)
+        return -1;
+    update_led((int)state->mode);
+    return 0;
 }
 
 void fan_output_cleanup(void)
 {
+    if (led_fd >= 0) {
+        close(led_fd); /* LED release() clears all segments. */
+        led_fd = -1;
+    }
     if (motor_fd >= 0) {
         /* 드라이버 release()에서도 모터 정지 */
         close(motor_fd);
