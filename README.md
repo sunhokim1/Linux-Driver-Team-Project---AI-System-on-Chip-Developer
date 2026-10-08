@@ -1,26 +1,56 @@
 # Smart Fan — Linux Device Driver Project
 
-## 스켈레톤 사용 안내
+## 현재 구현과 실행 안내
 
-현재 저장소는 팀별 구현을 시작하기 위한 스켈레톤이다. 초기 OFF 상태 설정과
-공통 인터페이스를 제공하며, 이벤트 판단·상태 전환·장치 통신·GPIO/IRQ/PWM 제어는
-담당 파일의 TODO로 남겨 두었다. 프로젝트 디렉터리는 이 저장소 루트를 사용한다.
+Member 2의 OFF/S1/S2/S3 구조를 기준으로 Event → State → Output을 통합했다.
+상태 값은 **OFF=0, S1=2, S2=5, S3=8**이며 현재 모터 duty는 0/60/80/100%다.
+기본 동작은 엔코더 버튼 ON/OFF, 오른쪽 S1→S2→S3, 왼쪽 S3→S2→S1이다.
+양 끝에서 단계가 멈추며 OFF에서 돌리는 입력은 무시한다. ON은 S1부터 시작한다.
+버튼은 30ms debounce 후 짧게 떼면 전원 전환, 2초 이상 누르면 OFF다.
+원래 SHORT_PRESS 순환 전환도 State API와 demo에서 유지한다.
 
 Linux / Jetson에서 GCC와 Make를 준비한 뒤 다음 명령을 사용한다.
 
 ```sh
 make                    # 사용자 프로그램 빌드: build/smart-fan
-make test               # 테스트 자리 빌드 및 실행 (현재 모두 SKIP)
-make kernel             # 실행 중인 커널의 헤더로 두 모듈 빌드
+make test               # 모의 State/Event/Output/LED 및 Main 11개 시나리오
+make kernel             # 실행 중인 커널의 헤더로 센서/모터/LED 모듈 빌드
 # 다른 타깃 커널 빌드 경로를 사용할 경우:
 make kernel KDIR=/path/to/target/kernel/build
 make clean              # 사용자 빌드 산출물 및 커널 산출물 정리 (커널 헤더 필요)
 ```
 
-현재 사용자 프로그램은 출력 초기화에서 `ENOSYS`를 알리고 종료 코드 1로 종료한다.
-커널 모듈도 초기화에서 `-ENOSYS`를 반환하므로 장치를 생성하거나 하드웨어를 제어하지 않는다.
-테스트 파일은 실제 검증이 추가될 때까지 SKIP(종료 코드 77)을 반환한다.
-커널 빌드 및 하드웨어 검증은 타깃 JetPack/Kernel 버전을 확정한 뒤 진행한다.
+모의 테스트는 장치 없이 실행되며 실제 센서·PWM 동작 검증을 대체하지 않는다.
+LED 테스트는 드라이버 소스를 모의 커널 API로 실행해 점등 개수, 입력 검증,
+OFF/자원 해제를 확인한다. 실제 커널 헤더 호환성 및 모듈 로드 검증은 별도다.
+커널 빌드/로드와 실제 모터 출력은 설치된 JetPack/Kernel 및 Pinmux에 맞춰 확인한다.
+커널의 기존 GPIO/IRQ/PWM 구현은 유지했다. 현재 PWM 모듈은 `pwm_id`가 필수다.
+
+Orin에서 변경 파일을 받은 뒤 다음 순서로 확인한다.
+
+```sh
+make user test
+# 기존 ultrasonic_drv 모듈을 로드하면 /dev/fan_encoder도 생성됨
+ls -l /dev/fan_encoder /dev/ultrasonic /dev/fan_pwm
+sudo ./build/smart-fan --dry-run       # 엔코더 상태 확인, 모터 장치 접근 없음
+sudo ./build/smart-fan                 # 엔코더로 실제 모터 제어
+sudo ./build/smart-fan --auto --dry-run # 초음파+엔코더 상태 확인
+sudo ./build/smart-fan --auto           # 초음파 자동 모드로 실제 제어
+```
+
+자동 모드는 20cm 이내 첫 접근에 S1, 멀어지거나 측정 실패 시 OFF다.
+거리 밖에서는 버튼/회전 입력을 무시하며, 가까운 상태에서 버튼 OFF 후에는
+다시 버튼 ON 또는 멀어졌다 재접근하면 된다. 기본 모드는 초음파 없이 조작 가능하다.
+모듈과 장치는 기존 보드 설정대로 로드되어 있어야 한다. 방향이 반대면 센서 모듈의
+`reverse=1` 옵션, 한 칸 인식이 다르면 `transitions=2` 또는 `4`를 확인한다.
+엔코더 핀은 S1=물리13, S2=물리18, KEY=물리22를 유지한다.
+
+LED 드라이버는 구현되어 있으나 Main의 상태 자동 표시는 아직 연결되어 있지 않다. `tests/test_led_bar.py`는
+독립 실험용이며 기본 LED1..8 핀은 **7/12/19/16/21/23/37/31**이다.
+`sudo python3 tests/test_led_bar.py`로 확인하며, 배선 표는 `docs/hardware.md`를 따른다.
+다른 배선은 `--pins`로 지정할 수 있다. `kernel/fan_led` 드라이버도 같은 배선으로 수정했다.
+LED 모듈 로드 중에는 GPIO 직접 테스트 대신 `docs/hardware.md`의 `/dev/fan_led` 테스트를 사용한다.
+기존 실행 파일 `fan_distance`와 이전 `build/` 산출물 대신 새로 빌드한 앱을 사용한다.
 
 | 담당 | 구현 시작 위치 |
 |---|---|
@@ -46,9 +76,10 @@ Universal AI Starter **v0.2.8**을 기존 프로젝트에 적용했다.
 
 선택된 모델 하나가 구현과 검증을 맡으며, 현재 채팅 모델은 설정 파일로 자동 전환되지 않는다.
 API 연결, 자동 에이전트 조율 및 선택 기능은 비활성이다.
-검증 명령 등록은 실행이나 통과를 뜻하지 않는다. 현재 테스트는 모두 SKIP이다.
+검증 명령 등록은 실행이나 통과를 뜻하지 않는다. 현재 모의 테스트와 보드 검증은 별도다.
 프로젝트의 스타터 파일은 독립된 복사본이며 개인 스킬 업데이트와 자동 동기화되지 않는다.
-기존 프로젝트 요구사항과 팀별 역할은 아래 내용을 따른다.
+아래 내용은 초기 1~8단계 스켈레톤 기획과 팀별 역할 기록이다. 현재 동작·통신 값은
+위 실행 안내와 `docs/state_diagram.md`, `docs/driver_interface.md`를 우선한다.
 
 ## 1. 프로젝트 개요
 
@@ -268,14 +299,14 @@ bool handle_event(
 
 #### 완료 조건
 
-- [ ] 초기 상태 OFF 설정
-- [ ] Event에 따른 State 전환
-- [ ] 풍량 0~8단계 범위 제한
-- [ ] State 변경 여부 반환
-- [ ] Main Loop 구현
-- [ ] Device Driver 인터페이스 통합
-- [ ] State Unit Test
-- [ ] 전체 시스템 통합 테스트
+- [x] 초기 상태 OFF 설정
+- [x] Event에 따른 State 전환
+- [x] OFF/S1/S2/S3 출력 값 0/2/5/8 제한
+- [x] State 변경 여부 반환
+- [x] Main Loop 구현
+- [x] Device Driver 인터페이스 통합 (모의 장치 검증)
+- [x] State Unit Test
+- [ ] 전체 시스템 통합 테스트 (모의 Main 통과, 실제 보드 검증 필요)
 
 ---
 

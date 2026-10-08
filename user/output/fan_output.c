@@ -5,6 +5,9 @@
 #include <unistd.h>
 
 #include "fan_output.h"
+#if defined(_WIN32) && !defined(O_CLOEXEC)
+#define O_CLOEXEC 0
+#endif
 
 static int motor_fd = -1;
 
@@ -16,7 +19,7 @@ static int send_speed(int speed)
         n = write(motor_fd, &speed, sizeof(speed));
     } while (n < 0 && errno == EINTR);
 
-    if (n != sizeof(speed)) {
+    if (n != (ssize_t)sizeof(speed)) {
         if (n >= 0)
             errno = EIO;
 

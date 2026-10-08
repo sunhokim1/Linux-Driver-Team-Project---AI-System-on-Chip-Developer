@@ -4,9 +4,9 @@
 임베디드 시스템 / Linux Character Device Driver 학습용 팀 프로젝트 (Smart Fan).
 
 ## Goal
-NVIDIA Jetson Orin Nano에서 초음파 거리 입력으로 선풍기 전원과 풍량 1~8단계를 제어한다.
+NVIDIA Jetson Orin Nano에서 엔코더/초음파 입력으로 OFF/S1/S2/S3을 제어한다.
 커널 드라이버와 사용자 공간의 통신 및 모듈별 독립 개발을 학습한다.
-현재는 스켈레톤만 작성된 단계이며 기능 구현은 TODO로 남아 있다.
+사용자 프로그램과 커널 드라이버 코드가 구현되어 있으며 실제 보드 검증은 별도다.
 
 ## Primary users
 Linux 드라이버를 개발하는 팀원 3명과 보드에서 Smart Fan을 사용하는 사용자.
@@ -17,15 +17,16 @@ Character Device의 open/read/write/close로 통신한다. ioctl은 확장용 �
 
 ## Runtime / platform
 타깃: NVIDIA Jetson Orin Nano / Jetson Linux.
-JetPack 및 커널 버전, 캐리어 보드와 핀 설정은 아직 미확정이다.
+캐리어 보드: NVIDIA 정품 Orin Nano Developer Kit. JetPack/커널 버전과 PWM ID는 보드에서 확인한다.
 현재 작업 환경: Windows PowerShell. Makefile 실행은 Linux / Jetson 환경을 기준으로 한다.
 
 ## Architecture
-입력: `kernel/ultrasonic/` -> `/dev/ultrasonic` -> `user/event/`.
+입력: `kernel/ultrasonic/` -> `/dev/fan_encoder`, `/dev/ultrasonic` -> `user/event/`.
+기본은 엔코더 전용이며 `--auto`에서만 초음파를 읽는다.
 판단: `user/state/`가 이벤트에 따라 전원 및 풍량 상태를 관리한다.
-출력: `user/output/` -> `/dev/fan_pwm` -> `kernel/fan_pwm/` -> 모터 / LED.
+출력: `user/output/` -> `/dev/fan_pwm` -> `kernel/fan_pwm/` -> 모터. LED 통합은 미구현이다.
 통합 진입점은 `user/main.c`, 공통 인터페이스는 `include/`이다.
-센서와 출력 페이로드는 타깃의 native int이며 단위는 각각 mm와 풍량 0~8이다.
+센서와 출력 페이로드는 native int이며 단위는 mm와 논리 출력 0/2/5/8이다.
 
 ## Design
 GUI는 정의되어 있지 않다. 상태 전환 초안은 `docs/state_diagram.md`,
@@ -34,14 +35,15 @@ GUI는 정의되어 있지 않다. 상태 전환 초안은 `docs/state_diagram.m
 ## Verification
 `Makefile`에 `make user`, `make test-build`, `make test`, `make kernel`이 정의되어 있다.
 표준 명령은 `.ai/verification.yaml`에 등록한다. 커널 빌드는 타깃과 일치하는 KDIR이 필요하다.
-현재 테스트는 종료 코드 77로 SKIP하며 기능 통과를 의미하지 않는다.
-이번 스타터 적용에서는 빌드나 테스트를 실행하지 않았다.
+State/Event/Output 테스트와 Main의 11개 시나리오는 모의 입력/출력으로 검증한다.
+커널 빌드와 GPIO/PWM 측정, 실제 모터/LED 검증은 타깃에서 별도로 수행한다.
 
 ## Constraints
 - 기존 스켈레톤, 공통 인터페이스와 팀별 담당 구조를 보존한다.
 - Member 1: 초음파 드라이버 / Event. Member 2: State / Main / 통합. Member 3: PWM / Output.
-- OFF는 speed 0, ON은 speed 1~8을 유지한다.
-- 센서 거리 기준, debounce, PWM duty 매핑 및 오류/종료 정책은 구현 전 협의한다.
+- mode가 기준이며 OFF=0, S1=2, S2=5, S3=8로 power/speed를 함께 계산한다.
+- 엔코더 버튼은 짧게 떼면 ON/OFF, 2초 이상이면 OFF다. 회전은 단계 끝에서 멈춘다.
+- 자동 모드는 20cm 이내 시작/밖 정지, 버튼 debounce 30ms, 현재 PWM duty 0/60/80/100%다.
 - 5V Echo는 GPIO에 맞게 레벨 변환하며 모터는 별도 전원과 드라이버 회로를 사용한다.
 - 프레임워크나 API를 설치/연결하지 않으며 스타터 선택 기능은 비활성으로 유지한다.
 

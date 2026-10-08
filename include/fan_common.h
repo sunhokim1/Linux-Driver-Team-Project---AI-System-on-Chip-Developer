@@ -31,7 +31,11 @@ typedef enum {
     EVENT_SPEED_DOWN,
     EVENT_NEAR,
     EVENT_FAR,
-    EVENT_SENSOR_LOST
+    EVENT_SENSOR_LOST,
+    EVENT_POWER_TOGGLE,
+    /* Compatibility names for encoder callers. */
+    EVENT_ROTATE_CW = EVENT_SPEED_UP,
+    EVENT_ROTATE_CCW = EVENT_SPEED_DOWN
 } fan_event_t;
 
 typedef enum {
@@ -48,8 +52,6 @@ typedef struct {
     bool power;
     int speed;
     fan_mode_t mode;
-    bool near;
-    bool blocked;
 } fan_state_t;
 #endif
 

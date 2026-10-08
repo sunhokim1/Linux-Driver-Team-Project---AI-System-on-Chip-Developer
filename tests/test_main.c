@@ -6,7 +6,7 @@
  *      tests/test_main.c user/state/fan_state.c build/main_test.o \
  *      -o build/test_main
  * Run each scenario in a fresh process:
- *   for case in normal term init initial sensor write invalid stop; do
+ *   for case in normal encoder auto dry term init initial sensor write invalid stop; do
  *       build/test_main "$case" || exit 1
  *   done
  */
@@ -20,7 +20,7 @@
 #include "event/event_handler.h"
 #include "output/fan_output.h"
 
-int smart_fan_main(void);
+int smart_fan_main(int argc, char **argv);
 
 static const char *scenario;
 static int init_calls;
@@ -28,6 +28,14 @@ static int cleanup_calls;
 static int event_calls;
 static int output_calls;
 static int speeds[16];
+
+int event_handler_configure(bool automatic)
+{
+    assert(automatic == (strcmp(scenario, "auto") == 0));
+    return 0;
+}
+
+void event_handler_cleanup(void) {}
 
 int fan_output_init(void)
 {
@@ -70,7 +78,21 @@ fan_event_t get_event(void)
 
     ++event_calls;
     /* Also prevents a broken main loop from making the test hang. */
-    assert(event_calls <= 8);
+    assert(event_calls <= 16);
+    if (strcmp(scenario, "encoder") == 0) {
+        static const fan_event_t sequence[] = {
+            EVENT_POWER_TOGGLE, EVENT_SPEED_UP, EVENT_SPEED_UP,
+            EVENT_SPEED_DOWN, EVENT_SPEED_DOWN, EVENT_POWER_TOGGLE,
+            EVENT_POWER_TOGGLE
+        };
+        if (event_calls <= 7) return sequence[event_calls - 1];
+    } else if (strcmp(scenario, "auto") == 0) {
+        static const fan_event_t sequence[] = {
+            EVENT_NEAR, EVENT_SPEED_UP, EVENT_SPEED_UP, EVENT_SPEED_DOWN,
+            EVENT_FAR, EVENT_NEAR, EVENT_SENSOR_LOST
+        };
+        if (event_calls <= 7) return sequence[event_calls - 1];
+    }
     if (strcmp(scenario, "sensor") == 0) {
         errno = ETIMEDOUT;
         return EVENT_ERROR;
@@ -97,11 +119,27 @@ int main(int argc, char **argv)
 
     assert(argc == 2);
     scenario = argv[1];
-    result = smart_fan_main();
+    char *args[] = {"smart-fan", strcmp(scenario, "dry") == 0 ?
+                                "--dry-run" : "--auto", NULL};
+    result = smart_fan_main(strcmp(scenario, "auto") == 0 ||
+                           strcmp(scenario, "dry") == 0 ? 2 : 1, args);
+    if (strcmp(scenario, "dry") == 0) {
+        assert(result == EXIT_SUCCESS && init_calls == 0 && cleanup_calls == 0);
+        assert(output_calls == 0 && event_calls == 8);
+        puts("PASS: main integration (dry; no motor access)");
+        return 0;
+    }
     assert(init_calls == 1);
     assert(cleanup_calls == 1);
 
-    if (strcmp(scenario, "normal") == 0) {
+    if (strcmp(scenario, "encoder") == 0 || strcmp(scenario, "auto") == 0) {
+        const int encoder_expected[] = {0, 2, 5, 8, 5, 2, 0, 2, 0};
+        const int auto_expected[] = {0, 2, 5, 8, 5, 0, 2, 0, 0};
+        const int *expected = strcmp(scenario, "auto") == 0 ?
+                              auto_expected : encoder_expected;
+        assert(result == EXIT_SUCCESS && event_calls == 8 && output_calls == 9);
+        for (int i = 0; i < output_calls; ++i) assert(speeds[i] == expected[i]);
+    } else if (strcmp(scenario, "normal") == 0) {
         const int expected[] = {0, 2, 5, 8, 2, 0, 0};
 
         assert(result == EXIT_SUCCESS);

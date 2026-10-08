@@ -91,6 +91,28 @@ static void test_sequence(void)
     assert(state.mode == FAN_MODE_S1 && state.speed == 2);
 }
 
+static void test_encoder_and_sensor(void)
+{
+    for (int i = FAN_MODE_OFF; i <= FAN_MODE_S3; ++i) {
+        expect_transition(modes[i], EVENT_POWER_TOGGLE,
+                          i == FAN_MODE_OFF ? FAN_MODE_S1 : FAN_MODE_OFF, true);
+        expect_transition(modes[i], EVENT_SPEED_UP,
+                          i == FAN_MODE_S1 ? FAN_MODE_S2 :
+                          i == FAN_MODE_S2 ? FAN_MODE_S3 : (fan_mode_t)i,
+                          i == FAN_MODE_S1 || i == FAN_MODE_S2);
+        expect_transition(modes[i], EVENT_SPEED_DOWN,
+                          i == FAN_MODE_S3 ? FAN_MODE_S2 :
+                          i == FAN_MODE_S2 ? FAN_MODE_S1 : (fan_mode_t)i,
+                          i == FAN_MODE_S3 || i == FAN_MODE_S2);
+        expect_transition(modes[i], EVENT_NEAR,
+                          i == FAN_MODE_OFF ? FAN_MODE_S1 : (fan_mode_t)i,
+                          i == FAN_MODE_OFF);
+        expect_transition(modes[i], EVENT_FAR, FAN_MODE_OFF, i != FAN_MODE_OFF);
+        expect_transition(modes[i], EVENT_SENSOR_LOST, FAN_MODE_OFF,
+                          i != FAN_MODE_OFF);
+    }
+}
+
 static void print_demo_state(const fan_state_t *state)
 {
     static const char *names[] = {"OFF", "S1", "S2", "S3"};
@@ -152,6 +174,7 @@ int main(int argc, char **argv)
     test_transition_table();
     test_invalid_state();
     test_sequence();
+    test_encoder_and_sensor();
     puts("PASS: OFF/S1/S2/S3 transitions, output mapping and invalid states");
     return 0;
 }
