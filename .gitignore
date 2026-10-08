@@ -7,4 +7,6 @@
 *.order
 *.symvers
 .*.cmd
+AGENTS.md
+PROJECT.md
 .tmp_versions/
