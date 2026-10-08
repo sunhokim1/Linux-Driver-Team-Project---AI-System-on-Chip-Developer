@@ -2,6 +2,7 @@
 #include <limits.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "state/fan_state.h"
 
@@ -90,8 +91,64 @@ static void test_sequence(void)
     assert(state.mode == FAN_MODE_S1 && state.speed == 2);
 }
 
-int main(void)
+static void print_demo_state(const fan_state_t *state)
 {
+    static const char *names[] = {"OFF", "S1", "S2", "S3"};
+
+    printf("state=%s power=%s speed=%d LED(simulated)=[",
+           names[state->mode], state->power ? "ON" : "OFF", state->speed);
+    for (int i = 0; i < 8; ++i)
+        putchar(i < state->speed ? '#' : '.');
+    puts("]");
+}
+
+static int run_demo(void)
+{
+    fan_state_t state;
+    char command[32];
+
+    fan_state_init(&state);
+    puts("State-only demo; no GPIO, PWM or real LED is accessed.");
+    puts("s + Enter: short press; l + Enter: long-press event (>=2s).");
+    puts("n + Enter: no event; q + Enter: quit. Duration is not measured.");
+    print_demo_state(&state);
+
+    while (1) {
+        fan_event_t event;
+
+        fputs("> ", stdout);
+        fflush(stdout);
+        if (!fgets(command, sizeof(command), stdin))
+            return ferror(stdin) ? 1 : 0;
+        command[strcspn(command, "\r\n")] = '\0';
+
+        if (strcmp(command, "q") == 0)
+            return 0;
+        if (strcmp(command, "s") == 0)
+            event = EVENT_SHORT_PRESS;
+        else if (strcmp(command, "l") == 0)
+            event = EVENT_LONG_PRESS;
+        else if (strcmp(command, "n") == 0)
+            event = EVENT_NONE;
+        else {
+            puts("Use s, l, n or q, followed by Enter.");
+            continue;
+        }
+
+        printf("changed=%s ", handle_event(&state, event) ? "yes" : "no");
+        print_demo_state(&state);
+    }
+}
+
+int main(int argc, char **argv)
+{
+    if (argc == 2 && strcmp(argv[1], "--demo") == 0)
+        return run_demo();
+    if (argc != 1) {
+        fprintf(stderr, "Usage: %s [--demo]\n", argv[0]);
+        return 1;
+    }
+
     test_transition_table();
     test_invalid_state();
     test_sequence();
