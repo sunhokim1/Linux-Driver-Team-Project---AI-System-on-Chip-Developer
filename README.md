@@ -31,6 +31,25 @@ make clean              # 사용자 빌드 산출물 및 커널 산출물 정리
 구체적인 협의 항목은 `docs/hardware.md`, `docs/driver_interface.md`,
 `docs/state_diagram.md`에 정리되어 있다.
 
+## AI 스타터 사용 안내
+
+Universal AI Starter **v0.2.8**을 기존 프로젝트에 적용했다.
+
+| 파일 | 용도 |
+|---|---|
+| `AGENTS.md` | 모듈 위치, 작업 원칙 및 완료 기준 |
+| `PROJECT.md` | 확인된 프로젝트 목표, 기술 스택, 타깃 및 제약 |
+| `.ai/models.yaml` | worker / main / escalation 모델 매핑 |
+| `.ai/routing.yaml` | 단일 모델 선택 및 순차 승격 지침 |
+| `.ai/verification.yaml` | Makefile에 정의된 검증 명령 |
+| `.ai/config.yaml` | 스타터 버전 및 선택 기능 상태 |
+
+선택된 모델 하나가 구현과 검증을 맡으며, 현재 채팅 모델은 설정 파일로 자동 전환되지 않는다.
+API 연결, 자동 에이전트 조율 및 선택 기능은 비활성이다.
+검증 명령 등록은 실행이나 통과를 뜻하지 않는다. 현재 테스트는 모두 SKIP이다.
+프로젝트의 스타터 파일은 독립된 복사본이며 개인 스킬 업데이트와 자동 동기화되지 않는다.
+기존 프로젝트 요구사항과 팀별 역할은 아래 내용을 따른다.
+
 ## 1. 프로젝트 개요
 
 ### 프로젝트 목표

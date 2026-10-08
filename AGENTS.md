@@ -1,0 +1,50 @@
+# Strong models, thin harness
+
+요구사항에 필요한 사실이 없을 때 `PROJECT.md`를 읽는다. 이미 읽은 지침과 설정은 변경되지 않았으면
+세션 중 재사용한다. 관련 subsystem의 코드·테스트와
+해당 영역의 nested `AGENTS.md`는 작업에 필요하면 읽는다. 기존 구조를 존중하고 관련 검증을 수행한다.
+
+## Repository map
+
+| Major subsystem | Entry point | Tests | Docs / schema | Nested AGENTS.md |
+| --- | --- | --- | --- | --- |
+| User application (`user/`) | `user/main.c` | `tests/` (현재 SKIP 자리) | `README.md` | — |
+| Sensor / Event (`kernel/ultrasonic/`, `user/event/`) | `kernel/ultrasonic/ultrasonic_drv.c`, `user/event/event_handler.c` | `tests/test_event.c` | `docs/hardware.md`, `docs/driver_interface.md` | — |
+| State machine (`user/state/`) | `user/state/fan_state.c` | `tests/test_state.c` | `docs/state_diagram.md` | — |
+| PWM / Output (`kernel/fan_pwm/`, `user/output/`) | `kernel/fan_pwm/fan_pwm_drv.c`, `user/output/fan_output.c` | `tests/test_pwm.c` | `docs/hardware.md`, `docs/driver_interface.md` | — |
+| Shared interface (`include/`) | `include/fan_common.h` | 위 모듈별 테스트 | `docs/driver_interface.md` | — |
+| Build / AI configuration | `Makefile`, `kernel/*/Makefile`, `.ai/` | `make test` (현재 모두 SKIP) | `README.md`, `PROJECT.md` | — |
+
+현재는 스켈레톤 단계다. 기존 TODO를 구현 완료로 간주하지 않는다.
+Kernel Space는 하드웨어 및 데이터 전달, User Space는 이벤트 판단과 상태 전환을 맡는다.
+Event는 State를 직접 변경하지 않고, State는 GPIO/PWM을 직접 제어하지 않는다.
+JetPack/Kernel 버전, 핀 및 PWM 자원은 미확정이다. 실제 타깃 정보를 확인한 뒤 구현한다.
+프로젝트 요구사항과 팀별 역할의 상세 기준은 `README.md`를 따른다.
+
+해당 영역 작업 시 map이 연결한 nested AGENTS.md부터 읽는다. 개별 파일 목록은 기록하지 않는다.
+새 subsystem이나 중요한 architecture boundary가 생길 때 map을 갱신하고,
+주요 entry point/tests/docs/schema/nested 지침의 경로가 바뀌면 기존 링크를 바로잡는다.
+작은 helper/component 추가에는 map 또는 문서 갱신을 요구하지 않는다.
+
+## 작업과 설정
+
+- `.ai/models.yaml`은 worker/main/escalation의 실제 모델 매핑 기준이다. 현재 채팅 모델은 자동 전환되지 않는다.
+- `.ai/routing.yaml`은 단독 모델 선택·기본 reasoning·실패 시 순차 승격 기준이다. 선택한 모델이 직접 구현과 검증을 맡는다. YAML은 현재 채팅 모델을 전환하지 않는다.
+- `.ai/verification.yaml`은 프로젝트에 설정된 검증 명령이다. 미설정·미실행·실패를 구분하며, 설정되지 않은 검증은 통과로 보고하지 않는다.
+- `.ai/config.yaml`의 선택 기능은 비활성이다. 별도 orchestration이나 이력 기록을 요구하지 않는다.
+
+완료하려면 요구사항을 충족하고 관련 실제 검증이 통과해야 한다. 설정된 명령 중 사용 가능한 것만 실행하며,
+명령이 없으면 수동 점검 결과와 검증 한계를 밝힌다.
+
+비용이 우선이고 요구사항·범위·검증이 명확한 구현은 Luna(worker) 단독으로 시작한다.
+분석·디버깅·설계가 필요하거나 빠른 완료·실패 위험 관리가 우선이면 Sol(main) 단독으로 시작한다.
+사용자가 지정한 모델을 우선한다. worker/main은 모델 선택 이름이며 조율자와 하위 구현자의 분업을 뜻하지 않는다.
+
+Sol+Luna 조율, 하위 에이전트 배정, 자동 병렬 실행은 사용하지 않는다. 선택된 모델이 설계·구현·검토·검증을 직접 수행한다.
+미해결 문제나 관련 검증 실패의 원인을 확인하고 현재 모델로 해결하기 어려우면 Luna → Sol → Astra 순서로 한 단계 승격한다.
+승격할 때 목표·관련 파일·시도·검증 결과·남은 문제만 전달한다. 별도 하위 에이전트를 생성해 모델 전환을 대신하지 않는다.
+모델 전환을 실행 환경에서 지원하지 않으면 실제 사용 모델과 한계를 밝히고, 필요한 상위 모델 선택을 사용자에게 안내한다.
+실행하지 않은 모델이나 승격을 실행했다고 보고하지 않는다.
+
+관련된 읽기와 수정을 묶어 처리하되 도구 호출 횟수 제한을 두지 않는다. 실제 실행된 검증 증거를 확인하며,
+코드 변경·실패·중요한 우려 없이 동일한 최종 상태의 검사를 반복하지 않는다. 완료 시 변경 내용·실제 검증·미해결 문제를 간결히 보고한다.

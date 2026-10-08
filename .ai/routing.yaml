@@ -1,0 +1,32 @@
+# 단독 모델 선택 지침. 실제 모델 ID는 models.yaml이 유일한 기준이다.
+routing:
+  default_role: worker
+  selection:
+    clear_implementation_cost_priority: worker
+    analysis_debugging_or_design: main
+    speed_or_failure_risk_priority: main
+  # 현재 모델로 해결하기 어려운 미해결 문제/검증 실패에서만 순차 승격한다.
+  escalation:
+    worker: main
+    main: escalation
+    escalation: null
+
+execution:
+  backend: current_model
+  orchestration: false
+  automatic_delegation: false
+  parallel_agents: false
+  verification_owner: current_model
+  model_source: .ai/models.yaml
+  # YAML은 채팅 모델을 바꾸지 않는다. 하위 에이전트로 전환을 대신하지 않는다.
+  unsupported_model_switch: disclose_and_request_manual_selection
+  report_actual_model: true
+  user_model_request_takes_priority: true
+
+reasoning:
+  worker:
+    default: low
+  main:
+    default: medium
+  escalation:
+    default: high
