@@ -8,7 +8,7 @@
 
 #include "event_handler.h"
 #if defined(_WIN32) && !defined(O_CLOEXEC)
-#define O_CLOEXEC 0 /* Host mock tests; deployment uses Linux O_CLOEXEC. */
+#define O_CLOEXEC 0 
 #endif
 
 struct encoder_sample { int steps; unsigned int pressed; };
@@ -68,7 +68,6 @@ static int initialize(void)
 
 static void enqueue(fan_event_t event)
 {
-    /* At most NEAR + button + two saturated speed changes per sample. */
     pending[pending_count++] = event;
 }
 

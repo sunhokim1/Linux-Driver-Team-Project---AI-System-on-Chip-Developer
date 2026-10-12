@@ -4,11 +4,6 @@
 #include <linux/miscdevice.h>
 #include <linux/uaccess.h>
 
-/* LED1~8 -> BOARD 7,12,19,16,21,23,37,31.
- * tegra234-gpio base=348: PAC.06, PH.07, PZ.05, PY.04,
- * PZ.04, PZ.03, PY.02, PQ.06. Verify the GPIO base on the target.
- * Avoid ultrasonic 11/36, encoder 13/18/22, motor 29 and PWM 15/32/33.
- */
 static const int led_gpio[8] = {492, 398, 483, 474, 482, 481, 472, 454};
 static const int led_cnt[4]  = {0, 2, 5, 8};   /* 0~3단계 → 켜질 LED 수 */
 

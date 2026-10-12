@@ -64,7 +64,6 @@ int main(int argc, char **argv)
         }
     }
 
-    /* 초음파 드라이버에서 이미 측정 간격을 확보함 */
     const struct timespec interval = {
         .tv_sec = 0,
         .tv_nsec = 10000000L

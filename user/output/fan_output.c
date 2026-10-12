@@ -31,7 +31,6 @@ static int write_value(int fd, int value)
     return 0;
 }
 
-/* LED is optional: report its failure without stopping a working motor. */
 static void update_led(int level)
 {
     if (led_fd >= 0 && write_value(led_fd, level) < 0) {

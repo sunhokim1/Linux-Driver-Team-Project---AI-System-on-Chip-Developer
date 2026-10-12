@@ -12,9 +12,6 @@
 
 #include "fan_common.h"
 
-/* Fixed wiring: ENA=BOARD 33 (32c0000.pwm), IN1=BOARD 29 (PQ.05).
- * scripts/load_motor.py selects the board's PWM global ID for ENA.
- */
 #define GPIO_IN1 453
 
 /* 주기 1ms = 1kHz */
